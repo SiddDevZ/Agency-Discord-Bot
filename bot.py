@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import discord
+from discord import app_commands
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
@@ -47,13 +48,13 @@ bot = commands.Bot(command_prefix=commands.when_mentioned_or("-"), intents=inten
 
 # Error handling
 @bot.event
-async def on_application_command_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
+async def on_app_command_error(interaction, error):
+    if isinstance(error, app_commands.CommandOnCooldown):
         embed = discord.Embed(
             description=f"Please try again in {error.retry_after:.2f}s.",
             colour=discord.Colour.from_rgb(21, 116, 0),
         )
-        await ctx.respond(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
         raise error
 
@@ -758,8 +759,8 @@ async def get_ai_response(prompt, max_attempts=3):
     else:
         return "Sorry, I couldn't get a response from any AI provider at the moment."
 
-@bot.slash_command(name='meme', description='Shows a random meme')
-@commands.cooldown(1, 7, commands.BucketType.user)
+@bot.tree.command(name='meme', description='Shows a random meme')
+@app_commands.checks.cooldown(1, 7)
 async def meme(interaction: discord.Interaction):
     try:
         response = requests.get('https://meme-api.com/gimme/dankmemes')
@@ -775,8 +776,8 @@ async def meme(interaction: discord.Interaction):
         await interaction.response.send_message(f"Error fetching meme: {str(e)}", ephemeral=True)
 
 
-@bot.slash_command(name='quote', description='Gives an inspirational quote')
-@commands.cooldown(1, 4, commands.BucketType.user)
+@bot.tree.command(name='quote', description='Gives an inspirational quote')
+@app_commands.checks.cooldown(1, 4)
 async def quote(interaction: discord.Interaction):
     try:
         response = requests.get("https://zenquotes.io/api/random")
@@ -797,7 +798,7 @@ async def quote(interaction: discord.Interaction):
         await interaction.response.send_message(f"Error fetching quote: {str(e)}", ephemeral=True)
 
 
-@bot.slash_command(name="version", description="Shows bot version information")
+@bot.tree.command(name="version", description="Shows bot version information")
 async def version(interaction: discord.Interaction):
     embed = discord.Embed(
         title="About LuvoBot",
@@ -805,8 +806,7 @@ async def version(interaction: discord.Interaction):
         color=discord.Color.green()
     )
     embed.add_field(name="Language", value="```Python 3.11```", inline=True)
-    embed.add_field(name="Main Library", value="```Pycord```", inline=True)
-    embed.add_field(name="Extra Library", value="```Discord.py```", inline=True)
+    embed.add_field(name="Main Library", value="```discord.py```", inline=True)
     embed.add_field(name="Developer", value="```@siddharthz```", inline=True)
     embed.add_field(name="Latency", value=f"```{bot.latency*1000:.2f}ms```", inline=True)
     embed.set_thumbnail(url=ICON_URL)
@@ -820,8 +820,10 @@ async def on_ready():
     print(f"Logged in as {bot.user.name}")
     
     try:
-        synced = await bot.sync_commands()
-        print(f"Synced {len(synced)} command(s)")
+        # Sync commands with Discord
+        guild = discord.Object(id=GUILD) if GUILD != 0 else None
+        await bot.tree.sync(guild=guild)
+        print(f"Slash commands synced {'to guild' if guild else 'globally'}")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
@@ -859,8 +861,8 @@ async def on_message(message):
     if message.author.bot:
         return
     
-    if message.author.id in [273352781442842624]:
-        return
+    # if message.author.id in [273352781442842624]:
+    #     return
     
     await bot.process_commands(message)
     
@@ -985,8 +987,8 @@ async def on_message(message):
                 pass
 
 
-@bot.slash_command(name='ask', description='Ask a question to our AI assistant')
-@commands.cooldown(1, 10, commands.BucketType.user)
+@bot.tree.command(name='ask', description='Ask a question to our AI assistant')
+@app_commands.checks.cooldown(1, 10)
 async def ask(interaction: discord.Interaction, question: str):
     await interaction.response.defer(ephemeral=False)
     

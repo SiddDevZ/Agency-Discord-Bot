@@ -861,8 +861,8 @@ async def on_message(message):
     if message.author.bot:
         return
     
-    # if message.author.id in [273352781442842624]:
-    #     return
+    if message.author.id in [273352781442842624]:
+        return
     
     await bot.process_commands(message)
     

@@ -343,7 +343,7 @@ class PersistentView(discord.ui.View):
             await interaction.response.send_modal(modal)
 
 
-@bot.command(name="send", guild_id=GUILD)
+@bot.command(name="send")
 @commands.has_permissions(administrator=True)
 async def setup(ctx):
     embed = discord.Embed(
@@ -861,10 +861,11 @@ async def on_message(message):
     if message.author.bot:
         return
     
+    # Process commands first before any other logic
+    await bot.process_commands(message)
+    
     if message.author.id in [273352781442842624]:
         return
-    
-    await bot.process_commands(message)
     
     if message.channel.category and message.channel.category.name == "Community":
         evaluation = await evaluate_message_content(message.content)

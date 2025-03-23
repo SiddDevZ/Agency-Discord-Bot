@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import discord
-from discord import app_commands
+from discord import app_commands, TextStyle
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
@@ -59,140 +59,181 @@ async def on_app_command_error(interaction, error):
         raise error
 
 # Ticket system modal classes
-class Support(discord.ui.Modal):
-    def __init__(self) -> None:
-        super().__init__(title="Support Ticket")
-        self.add_item(
-            discord.ui.InputText(
-                label="Support Details",
-                placeholder="Describe your issue or question in detail",
-                style=discord.InputTextStyle.long
+class Support(discord.ui.Modal, title="Support Ticket"):
+    details = discord.ui.TextInput(
+        label="Support Details",
+        placeholder="Describe your issue or question in detail",
+        style=TextStyle.long,
+        required=True
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            guild = bot.get_guild(GUILD)
+            ticket_category = discord.utils.get(guild.categories, name="━━━| 🎫 TICKETS |━━━")
+            
+            if not ticket_category:
+                await interaction.response.send_message(
+                    "Error: Ticket category not found. Please contact server administrators.",
+                    ephemeral=True
+                )
+                return
+                
+            user = interaction.user
+            user_avatar_url = user.avatar.url if user.avatar else user.default_avatar.url
+            
+            embed = discord.Embed(
+                title=f"<:user:1351969175001759755> New Support Request",
+                description=f"<:dot:996804674252439733> **Description:**\n> {self.details.value}",
+                color=discord.Color.green(),
+                timestamp=datetime.datetime.utcnow()
             )
-        )
+            embed.set_thumbnail(url=user_avatar_url)
 
-    async def callback(self, interaction: discord.Interaction):
-        guild = bot.get_guild(GUILD)
-        ticket_category = discord.utils.get(guild.categories, name="━━━| 🎫 TICKETS |━━━")
-        user = interaction.user
-        user_avatar_url = user.avatar.url if user.avatar else user.default_avatar.url
-        
-        embed = discord.Embed(
-            title=f"<:user:1351969175001759755> New Support Request",
-            description=f"<:dot:996804674252439733> **Description:**\n> {self.children[0].value}",
-            color=discord.Color.green(),
-            timestamp=datetime.datetime.utcnow()
-        )
-        embed.set_thumbnail(url=user_avatar_url)
-
-        ticket_channel = await guild.create_text_channel(
-            f"❓〢{interaction.user.name.lower()}",
-            category=ticket_category
-        )
-        
-        await ticket_channel.set_permissions(guild.default_role,
-                                             view_channel=False,
-                                             read_messages=False,
-                                             send_messages=False)
-        await ticket_channel.set_permissions(interaction.user,
-                                             read_messages=True,
-                                             send_messages=True)
-        
-        em = discord.Embed(
-            description=f"Your ticket has been created in {ticket_channel.mention}",
-            color=discord.Color.green()
-        )
-        
-        await interaction.response.send_message(embed=em, ephemeral=True)
-        damn = await ticket_channel.send("@everyone", embed=embed, view=TicketView(ticket_channel))
-        await damn.pin()
-        
-        com = discord.Embed(
-            title="<:check_yes:1351969576669151304> Request Submitted",
-            description="Please wait while our team reviews your request.",
-            color=discord.Color.green(),
-            timestamp=datetime.datetime.utcnow()
-        )
-        await ticket_channel.send(embed=com)
-
-
-class MyModal(discord.ui.Modal):
-    def __init__(self) -> None:
-        super().__init__(title="Placing Order")
-        self.add_item(
-            discord.ui.InputText(
-                label="Project Details",
-                placeholder="Briefly describe your project",
-                style=discord.InputTextStyle.long
+            ticket_channel = await guild.create_text_channel(
+                f"❓〢{interaction.user.name.lower()}",
+                category=ticket_category
             )
-        )
-        self.add_item(
-            discord.ui.InputText(
-                label="Budget (In USD)",
-                placeholder="Provide your approximate budget",
-                style=discord.InputTextStyle.singleline
+            
+            await ticket_channel.set_permissions(guild.default_role,
+                                                view_channel=False,
+                                                read_messages=False,
+                                                send_messages=False)
+            await ticket_channel.set_permissions(interaction.user,
+                                                read_messages=True,
+                                                send_messages=True)
+            
+            em = discord.Embed(
+                description=f"Your ticket has been created in {ticket_channel.mention}",
+                color=discord.Color.green()
             )
+            
+            await interaction.response.send_message(embed=em, ephemeral=True)
+            damn = await ticket_channel.send("@everyone", embed=embed, view=TicketView(ticket_channel))
+            await damn.pin()
+            
+            com = discord.Embed(
+                title="<:check_yes:1351969576669151304> Request Submitted",
+                description="Please wait while our team reviews your request.",
+                color=discord.Color.green(),
+                timestamp=datetime.datetime.utcnow()
+            )
+            await ticket_channel.send(embed=com)
+        except Exception as e:
+            print(f"Support modal error: {e}")
+            try:
+                await interaction.response.send_message(
+                    f"An error occurred creating your ticket: {str(e)[:100]}. Please try again or contact an administrator.",
+                    ephemeral=True
+                )
+            except:
+                try:
+                    await interaction.followup.send(
+                        "An error occurred creating your ticket. Please try again or contact an administrator.",
+                        ephemeral=True
+                    )
+                except:
+                    pass
+                    
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        print(f"Support modal error: {error}")
+        await interaction.response.send_message(
+            "An error occurred. Please try again or contact an administrator.",
+            ephemeral=True
         )
 
-    async def callback(self, interaction: discord.Interaction):
-        guild = bot.get_guild(GUILD)
-        ticket_category = discord.utils.get(guild.categories, name="━━━| 🎫 TICKETS |━━━")
-        user = interaction.user
-        user_avatar_url = user.avatar.url if user.avatar else user.default_avatar.url
-        
-        embed = discord.Embed(
-            title=f"New Commission Request",
-            # description=f"**Project Details:**\n> {self.children[0].value}\n\n",
-            fields=[
-                discord.EmbedField(
-                  name="Project Details",
-                  value=f"```{self.children[0].value}```",
-                  inline=False
-                ),
-                discord.EmbedField(
-                    name="Budget",
-                    value=f"```{self.children[1].value}```",
-                    inline=True
-                ),
-                discord.EmbedField(
-                    name="Submitted by",
-                    value=f"```{interaction.user.name}```",
-                    inline=True
-                ),
-            ],
-            color=discord.Color.green(),
-            timestamp=datetime.datetime.utcnow()
-        )
-        embed.set_thumbnail(url=user_avatar_url)
 
-        ticket_channel = await guild.create_text_channel(
-            f"🎫〢{interaction.user.name.lower()}",
-            category=ticket_category
+class MyModal(discord.ui.Modal, title="Placing Order"):
+    project_details = discord.ui.TextInput(
+        label="Project Details",
+        placeholder="Briefly describe your project",
+        style=TextStyle.long,
+        required=True
+    )
+    
+    budget = discord.ui.TextInput(
+        label="Budget (In USD)",
+        placeholder="Provide your approximate budget",
+        style=TextStyle.short,
+        required=True
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            guild = bot.get_guild(GUILD)
+            ticket_category = discord.utils.get(guild.categories, name="━━━| 🎫 TICKETS |━━━")
+            
+            if not ticket_category:
+                await interaction.response.send_message(
+                    "Error: Ticket category not found. Please contact server administrators.",
+                    ephemeral=True
+                )
+                return
+                
+            user = interaction.user
+            user_avatar_url = user.avatar.url if user.avatar else user.default_avatar.url
+            
+            embed = discord.Embed(
+                title=f"New Commission Request",
+                color=discord.Color.green(),
+                timestamp=datetime.datetime.utcnow()
+            )
+            embed.add_field(name="Project Details", value=f"```{self.project_details.value}```", inline=False)
+            embed.add_field(name="Budget", value=f"```{self.budget.value}```", inline=True)
+            embed.add_field(name="Submitted by", value=f"```{interaction.user.name}```", inline=True)
+            embed.set_thumbnail(url=user_avatar_url)
+
+            ticket_channel = await guild.create_text_channel(
+                f"🎫〢{interaction.user.name.lower()}",
+                category=ticket_category
+            )
+            
+            await ticket_channel.set_permissions(guild.default_role,
+                                                view_channel=False,
+                                                read_messages=False,
+                                                send_messages=False)
+            await ticket_channel.set_permissions(interaction.user,
+                                                read_messages=True,
+                                                send_messages=True)
+            
+            em = discord.Embed(
+                description=f"Your ticket has been created in {ticket_channel.mention}",
+                color=discord.Color.green()
+            )
+            
+            await interaction.response.send_message(embed=em, ephemeral=True)
+            damn = await ticket_channel.send("@everyone", embed=embed, view=TicketView(ticket_channel))
+            await damn.pin()
+            
+            com = discord.Embed(
+                title="<:check_yes:1351969576669151304> Request Submitted",
+                description="Please wait while our team reviews your request.",
+                color=discord.Color.green(),
+                timestamp=datetime.datetime.utcnow()
+            )
+            await ticket_channel.send(embed=com)
+        except Exception as e:
+            print(f"Order modal error: {e}")
+            try:
+                await interaction.response.send_message(
+                    f"An error occurred creating your ticket: {str(e)[:100]}. Please try again or contact an administrator.",
+                    ephemeral=True
+                )
+            except:
+                try:
+                    await interaction.followup.send(
+                        "An error occurred creating your ticket. Please try again or contact an administrator.",
+                        ephemeral=True
+                    )
+                except:
+                    pass
+                    
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        print(f"Order modal error: {error}")
+        await interaction.response.send_message(
+            "An error occurred. Please try again or contact an administrator.",
+            ephemeral=True
         )
-        
-        await ticket_channel.set_permissions(guild.default_role,
-                                             view_channel=False,
-                                             read_messages=False,
-                                             send_messages=False)
-        await ticket_channel.set_permissions(interaction.user,
-                                             read_messages=True,
-                                             send_messages=True)
-        
-        em = discord.Embed(
-            description=f"Your ticket has been created in {ticket_channel.mention}",
-            color=discord.Color.green()
-        )
-        
-        await interaction.response.send_message(embed=em, ephemeral=True)
-        damn = await ticket_channel.send("@everyone", embed=embed, view=TicketView(ticket_channel))
-        await damn.pin()
-        
-        com = discord.Embed(
-            title="<:check_yes:1351969576669151304> Request Submitted",
-            description="Please wait while our team reviews your request.",
-            color=discord.Color.green(),
-            timestamp=datetime.datetime.utcnow()
-        )
-        await ticket_channel.send(embed=com)
 
 
 class TicketView(discord.ui.View):
@@ -201,79 +242,219 @@ class TicketView(discord.ui.View):
         self.ticket_channel = ticket_channel
 
     @discord.ui.button(label="Close", emoji="🔒", custom_id="ticket:close")
-    async def close_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        confirm_view = ConfirmCloseView(self.ticket_channel)
+
+        confirm_embed = discord.Embed(
+            title="Confirm Ticket Closure",
+            description="Are you sure you want to close this ticket? This action cannot be undone.",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=confirm_embed, view=confirm_view)
+
+
+class ConfirmCloseView(discord.ui.View):
+    def __init__(self, ticket_channel):
+        super().__init__(timeout=60)
+        self.ticket_channel = ticket_channel
+        self.value = None
+
+    @discord.ui.button(label="Yes", style=discord.ButtonStyle.danger, custom_id="confirm_close:yes")
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_permissions = interaction.user.guild_permissions
-        if user_permissions.administrator:
-            # Create a confirmation view with Yes/No buttons
-            confirm_view = ConfirmCloseView(self.ticket_channel)
-            
-            # Send confirmation message
-            confirm_embed = discord.Embed(
-                title="Confirm Ticket Closure",
-                description="Are you sure you want to close this ticket? This action cannot be undone.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=confirm_embed, view=confirm_view)
-        else:
+        if not user_permissions.administrator:
             embed = discord.Embed(
                 title="<a:alert:1351969965233934466> No Permission",
                 description="You cannot close this ticket. If you created it by mistake, please contact a staff member."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
-# Confirmation view for ticket closing
-class ConfirmCloseView(discord.ui.View):
-    def __init__(self, ticket_channel):
-        super().__init__(timeout=60)  # Set a timeout for the confirmation
-        self.ticket_channel = ticket_channel
-        self.value = None
-
-    @discord.ui.button(label="Yes", style=discord.ButtonStyle.danger, custom_id="confirm_close:yes")
-    async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
-        # Delete the confirmation message
+            return
+            
         try:
-            await interaction.message.delete()
-        except:
-            pass
-        
-        # Skip "Please wait" and go straight to closing message
-        await interaction.response.defer()
-        
-        emd = discord.Embed(description="<a:alert:1351969965233934466> Closing ticket...")
-        await interaction.channel.send(embed=emd)
+            try:
+                await interaction.message.delete()
+            except:
+                pass
+            
+            await interaction.response.defer()
+            
+            channel = interaction.channel
+            if not channel:
+                await interaction.followup.send("Error: Could not find the channel", ephemeral=True)
+                return
+                
+            # Process ticket transcript if logging is enabled
+            log_channel = bot.get_channel(LOG_CHANNEL)
+            if log_channel:
+                messages = []
+                async for message in channel.history(limit=500, oldest_first=True):
+                    messages.append(message)
 
-        # Process ticket closing and transcript
-        messages = []
-        async for message in self.ticket_channel.history():
-            messages.append(message)
+                # Create a text preview for direct viewing in Discord
+                text_preview = f"# Transcript for {channel.name}\n"
+                text_preview += f"Closed by: {interaction.user.name} ({interaction.user.id}) at <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n\n"
+                
+                # Get ticket creator from the channel name
+                ticket_creator_name = channel.name.split('〢')[-1] if '〢' in channel.name else "Unknown"
+                text_preview += f"Ticket created by: {ticket_creator_name}\n"
+                text_preview += f"Total messages: {len(messages)}\n\n"
+                
+                # Create a summary of the transcript
+                text_preview += "## Message Summary\n"
+                
+                # Add up to 15 messages to the preview (prioritize first and latest messages)
+                message_limit = min(15, len(messages))
+                if len(messages) <= message_limit:
+                    # If we have fewer messages than the limit, include all of them
+                    preview_messages = messages
+                else:
+                    # Otherwise, take first 5 and last 10 messages
+                    preview_messages = messages[:5] + messages[-10:]
+                    text_preview += f"*Showing {message_limit} out of {len(messages)} messages*\n\n"
+                
+                for msg in preview_messages:
+                    timestamp = f"<t:{int(msg.created_at.timestamp())}:t>"
+                    text_preview += f"**{msg.author.name}** ({timestamp}): {msg.content[:100]}{'...' if len(msg.content) > 100 else ''}\n"
+                
+                # Generate a more detailed HTML transcript
+                transcript = ""
+                
+                # Improved CSS for better styling
+                enhanced_css = """
+                body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; color: #333; }
+                .ticket-info { background: #4A76A8; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+                .ticket-title { font-size: 22px; margin: 0; }
+                .ticket-meta { font-size: 14px; opacity: 0.8; margin-top: 5px; }
+                .messages { display: flex; flex-direction: column; gap: 15px; }
+                .message { display: flex; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+                .message-avatar { width: 50px; padding: 15px; }
+                .message-avatar img { width: 50px; height: 50px; border-radius: 50%; }
+                .message-content { flex: 1; padding: 15px 15px 15px 0; }
+                .message-header { display: flex; align-items: center; margin-bottom: 5px; }
+                .message-author { font-weight: bold; margin-right: 8px; }
+                .message-timestamp { color: #888; font-size: 12px; }
+                .message-text { margin-top: 5px; white-space: pre-wrap; }
+                .message-attachments { margin-top: 10px; }
+                .message-attachments a { display: inline-block; margin-right: 10px; color: #4A76A8; text-decoration: none; }
+                .system-message { background: #f0f7ff; border-left: 4px solid #4A76A8; padding: 10px; margin: 5px 0; }
+                """
+                
+                # HTML header with metadata
+                transcript += f"""<!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Ticket Transcript - {channel.name}</title>
+                    <style>{enhanced_css}</style>
+                </head>
+                <body>
+                    <div class="ticket-info">
+                        <h1 class="ticket-title">Ticket: {channel.name}</h1>
+                        <div class="ticket-meta">
+                            <div>Created by: {ticket_creator_name}</div>
+                            <div>Closed by: {interaction.user.name} on {datetime.datetime.utcnow().strftime('%Y-%m-%d at %H:%M:%S UTC')}</div>
+                            <div>Total Messages: {len(messages)}</div>
+                        </div>
+                    </div>
+                    <div class="messages">
+                """
+                
+                # Add each message to the transcript
+                for message in messages:
+                    author_name = message.author.name
+                    author_avatar = message.author.avatar.url if message.author.avatar else message.author.default_avatar.url
+                    message_content = message.content.replace('<', '&lt;').replace('>', '&gt;')
+                    timestamp = message.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # Handle embeds
+                    embeds_html = ""
+                    if message.embeds:
+                        for embed in message.embeds:
+                            embeds_html += f'<div class="system-message">'
+                            if embed.title:
+                                embeds_html += f'<strong>{embed.title}</strong><br>'
+                            if embed.description:
+                                embeds_html += f'{embed.description}<br>'
+                            embeds_html += '</div>'
+                    
+                    # Handle attachments
+                    attachments_html = ""
+                    if message.attachments:
+                        attachments_html = '<div class="message-attachments">'
+                        for attachment in message.attachments:
+                            attachments_html += f'<a href="{attachment.url}" target="_blank">{attachment.filename}</a> '
+                        attachments_html += '</div>'
+                    
+                    # Add the message to the transcript
+                    transcript += f"""
+                    <div class="message">
+                        <div class="message-avatar">
+                            <img src="{author_avatar}" alt="{author_name}"/>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-author">{author_name}</span>
+                                <span class="message-timestamp">{timestamp}</span>
+                            </div>
+                            <div class="message-text">{message_content}</div>
+                            {embeds_html}
+                            {attachments_html}
+                        </div>
+                    </div>
+                    """
+                
+                # Close the HTML
+                transcript += "</div></body></html>"
 
-        transcript = ""
-        for message in reversed(messages):
-            author_name = message.author.name
-            author_avatar = message.author.avatar.url if message.author.avatar else message.author.default_avatar.url
-            message_content = message.content
-            timestamp = message.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            transcript += f'<div class="message"><img src="{author_avatar}" alt="{author_name}"/><span class="author">{author_name}</span><span class="timestamp">{timestamp}</span><div class="content">{message_content}</div></div>'
-
-        log_channel = bot.get_channel(LOG_CHANNEL)
-        if log_channel:
-            transcript_html = f'<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{CSS}</style></head><body><div class="messages">{transcript}</div></body></html>'
-            with io.StringIO(transcript_html) as transcript_file:
-                await log_channel.send(file=discord.File(transcript_file, filename="transcript.html"))
-        
-        # Finally delete the channel
-        await interaction.channel.delete()
+                # Send text preview
+                preview_embed = discord.Embed(
+                    title=f"📝 Ticket Transcript Preview - {channel.name}",
+                    description=text_preview[:4000] if len(text_preview) > 4000 else text_preview,
+                    color=discord.Color.blue(),
+                    timestamp=datetime.datetime.utcnow()
+                )
+                preview_embed.set_footer(text="Full HTML transcript attached below")
+                await log_channel.send(embed=preview_embed)
+                
+                # Send the full HTML transcript
+                with io.StringIO(transcript) as transcript_file:
+                    await log_channel.send(
+                        file=discord.File(transcript_file, filename=f"transcript-{channel.name}-{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}.html")
+                    )
+            
+            closing_embed = discord.Embed(
+                title="<a:alert:1351969965233934466> Ticket Closing",
+                description="This ticket is now being closed and will be deleted shortly.",
+                color=discord.Color.orange(),
+                timestamp=datetime.datetime.utcnow()
+            )
+            await channel.send(embed=closing_embed)
+            
+            # Wait a short time for users to see the message
+            await asyncio.sleep(3)
+            
+            # Delete the channel
+            await channel.delete()
+            
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="Error",
+                description=f"An error occurred while closing the ticket: {str(e)}",
+                color=discord.Color.red()
+            )
+            try:
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            except:
+                await interaction.channel.send(embed=error_embed)
 
     @discord.ui.button(label="No", style=discord.ButtonStyle.secondary, custom_id="confirm_close:no")
-    async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
-        # Delete the confirmation message
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             await interaction.message.delete()
         except:
             pass
         
-        # No response needed since the message is deleted
         await interaction.response.defer()
         self.stop()
 
@@ -296,11 +477,22 @@ class PersistentView(discord.ui.View):
         emoji="<:cart:1352016456174272664>",
         custom_id="persistent_view:ticket"
     )
-    async def ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = bot.get_guild(GUILD)
         ticket_category = discord.utils.get(guild.categories, name="━━━| 🎫 TICKETS |━━━")
         
-        # Count user's existing tickets
+        if not ticket_category:
+            await interaction.response.send_message(
+                "Error: Ticket category not found. Please contact server administrators.",
+                ephemeral=True
+            )
+            return
+            
+        # Allow admins to bypass the ticket limit check
+        if interaction.user.guild_permissions.administrator:
+            await interaction.response.send_modal(MyModal())
+            return
+            
         user_tickets = [
             channel for channel in ticket_category.channels 
             if channel.name.endswith(f"{interaction.user.name.lower()}")
@@ -313,8 +505,7 @@ class PersistentView(discord.ui.View):
             )
             return
         else:
-            modal = MyModal()
-            await interaction.response.send_modal(modal)
+            await interaction.response.send_modal(MyModal())
 
     @discord.ui.button(
         label="Support",
@@ -322,10 +513,22 @@ class PersistentView(discord.ui.View):
         # emoji="<:user:1351969175001759755>",
         custom_id="persistent_view:support"
     )
-    async def support(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def support(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = bot.get_guild(GUILD)
         ticket_category = discord.utils.get(guild.categories, name="━━━| 🎫 TICKETS |━━━")
         
+        if not ticket_category:
+            await interaction.response.send_message(
+                "Error: Ticket category not found. Please contact server administrators.",
+                ephemeral=True
+            )
+            return
+            
+        # Allow admins to bypass the ticket limit check
+        if interaction.user.guild_permissions.administrator:
+            await interaction.response.send_modal(Support())
+            return
+            
         # Count user's existing tickets
         user_tickets = [
             channel for channel in ticket_category.channels 
@@ -339,8 +542,7 @@ class PersistentView(discord.ui.View):
             )
             return
         else:
-            modal = Support()
-            await interaction.response.send_modal(modal)
+            await interaction.response.send_modal(Support())
 
 
 @bot.command(name="send")
@@ -363,123 +565,6 @@ async def setup(ctx):
     embed.set_thumbnail(url=ICON_URL)
 
     await ctx.channel.send(embed=embed, view=PersistentView())
-
-
-# About server UI
-class AboutView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        self.cooldown = commands.CooldownMapping.from_cooldown(1, 7200, commands.BucketType.user)
-        self.add_item(
-            discord.ui.Button(
-                label="Faq",
-                url="https://discord.com/channels/1326998747841822740/1326998748315914250",
-                emoji="<:settings:1351970266825097337>"
-            )
-        )
-        self.add_item(
-            discord.ui.Button(
-                label="Reviews",
-                url="https://discord.com/channels/1326998747841822740/1330226842984124597",
-                emoji="💎"
-            )
-        )
-
-    @discord.ui.button(
-        label="Rules",
-        style=discord.ButtonStyle.gray,
-        emoji="📕",
-        custom_id="persistent_view:rules"
-    )
-    async def rules(self, button: discord.ui.Button, interaction: discord.Interaction):
-        rule_embeds = [
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 1`` - Respectful Conduct:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Treat others as you wish to be treated. Avoid negativity, excessive swearing, and inciting drama. Civil debates are allowed, but unnecessary conflicts are not permitted."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 2`` - No Inappropriate/NSFW Content:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Keep content appropriate for all ages. Posting NSFW or explicit material may result in severe consequences."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 3`` - No Profanity:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Limited swearing is allowed, but extreme slurs or discriminatory language will lead to a ban."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 4`` - No Spamming:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Avoid spamming messages, large text blocks, or repeated attachments that disrupt the chat."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 5`` - No Mini-Modding:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Let the staff handle moderation. Do not provide false information or intervene in moderation."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 6`` - No Begging:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Do not ask for free Nitro, roles, or currencies. Such requests may lead to punishment."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 7`` - Terms of Service:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Follow Discord's Terms of Service and Community Guidelines. Failure to comply may result in a ban."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 8`` - No Wasting Staff Time:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Do not waste staff time with unnecessary messages or ticket requests. For complaints, contact a senior moderator."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 9`` - No Advertisement:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Only advertise in designated channels. Direct message advertisements may lead to an instant ban."
-            ),
-            discord.Embed(
-                title="<:dot:996804674252439733> ``RULE 10`` - Use Common Sense:",
-                color=discord.Color.from_rgb(48, 44, 52),
-                description="Use common sense and follow the rules to maintain a respectful environment. Exploiting loopholes may result in punishment."
-            )
-        ]
-        await interaction.response.send_message(embeds=rule_embeds, ephemeral=True)
-
-    @discord.ui.select(
-        custom_id="faq_select",
-        min_values=1,
-        max_values=1,
-        placeholder="Frequently Asked Questions!",
-        options=[
-            discord.SelectOption(label="How will I create Order from Server", value="order"),
-            discord.SelectOption(label="How can I contact support?", value="contact"),
-            discord.SelectOption(label="What are the available services?", value="services"),
-            discord.SelectOption(label="What is the Refund Policy of this Server", value="refund")
-        ]
-    )
-    async def select_callback(self, select, interaction):
-        question_titles = {
-            "order": "How will I create Order from Server",
-            "contact": "How can I contact support?",
-            "services": "What are the available services?",
-            "refund": "What is the Refund Policy of this Server"
-        }
-        
-        if select.values[0] == "order":
-            response = "To place an order, please open a ticket in <#1326998748315914247>. Provide the necessary details, and our team will assist you."
-        elif select.values[0] == "contact":
-            response = "Contact support by sending a direct message to our team or opening a support ticket in <#1326998748315914247>."
-        elif select.values[0] == "services":
-            response = "Our services include Web Development, UI/UX Design, Discord Bot Development, and more."
-        elif select.values[0] == "refund":
-            response = ("Payments are made in three stages: 33% upfront, 33% after progress is shown, "
-                        "and 34% upon completion. Refunds are not available after project completion, "
-                        "but free revisions are offered. If unsatisfied before completion, you may cancel "
-                        "for a refund on the later stages.")
-        
-        embed = discord.Embed(title=question_titles[select.values[0]], description=response, color=discord.Color.green())
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 @bot.command(name="embed")
@@ -824,6 +909,14 @@ async def on_ready():
         guild = discord.Object(id=GUILD) if GUILD != 0 else None
         await bot.tree.sync(guild=guild)
         print(f"Slash commands synced {'to guild' if guild else 'globally'}")
+        
+        # Add persistent views
+        bot.add_view(PersistentView())
+        
+        # Add views for ticket system persistence by registering their custom IDs
+        bot.add_view(TicketView(None))  
+        bot.add_view(ConfirmCloseView(None))
+        print("Persistent views added")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
@@ -884,7 +977,7 @@ async def on_message(message):
                     
                     embed.add_field(
                         name="User",
-                        value=f"{message.author.mention} (`{message.author.name}#{message.author.discriminator if hasattr(message.author, 'discriminator') else ''}`)",
+                        value=f"{message.author.mention} (`{message.author.name}`)",
                         inline=True
                     )
                     
@@ -952,7 +1045,7 @@ async def on_message(message):
                     
                     embed.add_field(
                         name="User",
-                        value=f"{message.author.mention} (`{message.author.name}#{message.author.discriminator if hasattr(message.author, 'discriminator') else ''}`)",
+                        value=f"{message.author.mention} (`{message.author.name}`)",
                         inline=True
                     )
                     

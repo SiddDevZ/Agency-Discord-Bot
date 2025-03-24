@@ -207,7 +207,7 @@ class MyModal(discord.ui.Modal, title="Placing Order"):
             
             com = discord.Embed(
                 title="<:check_yes:1351969576669151304> Request Submitted",
-                description="Please wait while our team reviews your request.",
+                description="Please wait while our team reviews your request, Feel free to share more details about your project.",
                 color=discord.Color.green(),
                 timestamp=datetime.datetime.utcnow()
             )

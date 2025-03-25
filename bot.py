@@ -44,6 +44,7 @@ CSS = os.getenv("CSS", "body{font-family:Arial,sans-serif;margin:0;padding:20px;
 # Setup intents
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True  # Enable member join/leave events
 bot = commands.Bot(command_prefix=commands.when_mentioned_or("-"), intents=intents)
 
 # Error handling
@@ -936,7 +937,7 @@ async def on_member_join(member):
         
         # Send and schedule deletion
         sent_message = await showcase_channel.send(welcome_text)
-        await asyncio.sleep(180)  # Wait 3 minutes
+        await asyncio.sleep(120)  # Wait 3 minutes
         try:
             await sent_message.delete()
         except discord.NotFound:

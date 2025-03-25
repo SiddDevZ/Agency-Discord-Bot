@@ -84,7 +84,7 @@ class Support(discord.ui.Modal, title="Support Ticket"):
             
             embed = discord.Embed(
                 title=f"<:user:1351969175001759755> New Support Request",
-                description=f"<:dot:996804674252439733> **Description:**\n> {self.details.value}",
+                description=f"**Description:**\n> {self.details.value}",
                 color=discord.Color.green(),
                 timestamp=datetime.datetime.utcnow()
             )
@@ -109,7 +109,7 @@ class Support(discord.ui.Modal, title="Support Ticket"):
             )
             
             await interaction.response.send_message(embed=em, ephemeral=True)
-            damn = await ticket_channel.send("@everyone", embed=embed, view=TicketView(ticket_channel))
+            damn = await ticket_channel.send(f"||@everyone|| {interaction.user.mention}", embed=embed, view=TicketView(ticket_channel))
             await damn.pin()
             
             com = discord.Embed(
@@ -202,7 +202,7 @@ class MyModal(discord.ui.Modal, title="Placing Order"):
             )
             
             await interaction.response.send_message(embed=em, ephemeral=True)
-            damn = await ticket_channel.send("@everyone", embed=embed, view=TicketView(ticket_channel))
+            damn = await ticket_channel.send(f"||@everyone|| {interaction.user.mention}", embed=embed, view=TicketView(ticket_channel))
             await damn.pin()
             
             com = discord.Embed(
@@ -919,6 +919,30 @@ async def on_ready():
         print("Persistent views added")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
+
+
+@bot.event
+async def on_member_join(member):
+    """Send a welcome message when a new member joins the server"""
+    try:
+        # Get the showcase channel
+        showcase_channel = bot.get_channel(1326998748718698563)
+        if not showcase_channel:
+            print("Showcase channel not found")
+            return
+            
+        # Send simple welcome message
+        welcome_text = f"👋 {member.mention} Welcome to LuvoWeb! Check out our website development & discord bot service showcases in this channel. For orders, visit the tickets channel."
+        
+        # Send and schedule deletion
+        sent_message = await showcase_channel.send(welcome_text)
+        await asyncio.sleep(180)  # Wait 3 minutes
+        try:
+            await sent_message.delete()
+        except discord.NotFound:
+            pass  # Message might have been deleted already
+    except Exception as e:
+        print(f"Error in welcome message: {e}")
 
 
 async def evaluate_message_content(message_content):

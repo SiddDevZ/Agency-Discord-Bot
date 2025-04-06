@@ -957,7 +957,7 @@ async def evaluate_message_content(message_content):
         "As the owner of a web development agency Discord server, your focus is on fostering natural "
         "discussions, collaboration, and knowledge sharing about web development. Promotions, advertisements, "
         "self-promotion, or soliciting — such as offering services, seeking clients, or posting personal "
-        "project links with commercial intent, or even just saying they are a web developer — are strictly prohibited. Direct requests for services, hiring, "
+        "project links with commercial intent, or even just saying they are a web developer — are strictly prohibited. Direct requests for services, hiring, but for web development software development and related categories only, others can be marked as DELETE. But please keep in mind that it's a discord server and people post emojis and talk about random stuff. so DELETE should only be used when it's neccessary."
         "or any transactional conversations should be redirected to proper channels. Your task is to evaluate "
         "messages and respond with \"DELETE\" for those that break these guidelines, \"REDIRECT\" for clients "
         "seeking services, or \"GOOD\" for messages that align with the community's purpose. Message is \"\"\""
@@ -979,7 +979,6 @@ async def on_message(message):
     if message.author.bot:
         return
     
-    # Process commands first before any other logic
     await bot.process_commands(message)
     
     if message.author.id in [273352781442842624]:
@@ -989,7 +988,6 @@ async def on_message(message):
         evaluation = await evaluate_message_content(message.content)
         
         if evaluation == "DELETE":
-            # Notify owner in designated channel for deleted messages
             try:
                 deletion_channel = bot.get_channel(1352513103333560340)
                 if deletion_channel:
@@ -1017,12 +1015,10 @@ async def on_message(message):
                         value=f"```{message.content[:1000]}{'...' if len(message.content) > 1000 else ''}```",
                         inline=False
                     )
-                    
-                    # Add user avatar as thumbnail
+
                     user_avatar_url = message.author.avatar.url if message.author.avatar else message.author.default_avatar.url
                     embed.set_thumbnail(url=user_avatar_url)
                     
-                    # Add footer with additional info
                     embed.set_footer(text="LuvoWeb • Moderation Alert", icon_url=ICON_URL)
                     
                     await deletion_channel.send(embed=embed)
@@ -1055,7 +1051,7 @@ async def on_message(message):
         elif evaluation == "REDIRECT":
             redirect_msg = await message.channel.send(
                 f"{message.author.mention}, it seems you're looking for services. "
-                f"Please message <@273352781442842624> directly or open a ticket in <#1326998748315914247> for assistance."
+                f"Please message the owner directly or open a ticket in <#1326998748315914247> for assistance."
             )
             
             try:

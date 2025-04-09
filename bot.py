@@ -11,6 +11,7 @@ import requests
 from typing import Optional, List, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import sys
+import time
 
 load_dotenv()
 
@@ -974,6 +975,47 @@ async def evaluate_message_content(message_content):
         return "GOOD"
 
 
+ALLOWED_AD_USER_ID = 1330302391257661502
+ad_cooldown = {}
+
+async def check_ad_permission(user_id, message_content, channel):
+    """
+    Checks if a user is allowed to post an ad and manages the cooldown.
+    Returns True if the ad is allowed, False if not.
+    """
+    if user_id != ALLOWED_AD_USER_ID:
+        return False
+        
+    current_time = time.time()
+    cooldown_period = 60 * 60 * 24 * 2 
+
+    if user_id in ad_cooldown:
+        last_post_time = ad_cooldown[user_id]
+        time_since_last_post = current_time - last_post_time
+        
+        if time_since_last_post < cooldown_period:
+
+            remaining_time = cooldown_period - time_since_last_post
+            remaining_days = int(remaining_time // (60 * 60 * 24))
+            remaining_hours = int((remaining_time % (60 * 60 * 24)) // (60 * 60))
+            
+            warning_msg = await channel.send(
+                f"<a:alert:1351969965233934466> <@{user_id}>, you can only post one ad every 2 days. "
+                f"Please wait {remaining_days} days and {remaining_hours} hours before posting another ad."
+            )
+            
+            await asyncio.sleep(180)
+            try:
+                await warning_msg.delete()
+            except discord.errors.NotFound:
+                pass
+                
+            return False
+    
+    ad_cooldown[user_id] = current_time
+    return True
+
+
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -988,6 +1030,12 @@ async def on_message(message):
         evaluation = await evaluate_message_content(message.content)
         
         if evaluation == "DELETE":
+            ad_allowed = await check_ad_permission(message.author.id, message.content, message.channel)
+            
+            if ad_allowed:
+                # Let the ad stay
+                return
+                
             try:
                 deletion_channel = bot.get_channel(1352513103333560340)
                 if deletion_channel:

@@ -12,6 +12,7 @@ from typing import Optional, List, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import sys
 import time
+import re
 
 load_dotenv()
 
@@ -791,8 +792,8 @@ async def tos_command(ctx):
         await asyncio.sleep(0.5) 
 
 async def get_ai_response(prompt, max_attempts=3):
-    model = "gpt-4o"
-    providers = ["Blackbox", "DarkAI", "PollinationsAI"]
+    model = "deepseek-r1"
+    providers = ["LambdaChat", "DeepInfraChat", "PollinationsAI", "Glider", "TypeGPT"]
     api_url = "https://chat-api-rp7a.onrender.com/v1/chat/completions"
     
     # Format message history (simplified for a single prompt)
@@ -819,7 +820,10 @@ async def get_ai_response(prompt, max_attempts=3):
                 
                 if response.status_code == 200:
                     data = response.json()
-                    return data["choices"][0]["message"]["content"], provider
+                    content = data["choices"][0]["message"]["content"]
+                    # Remove content between <think> and </think> tags
+                    content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+                    return content, provider
                 
             except Exception as e:
                 if attempt == max_attempts - 1:
@@ -907,15 +911,12 @@ async def on_ready():
     print(f"Logged in as {bot.user.name}")
     
     try:
-        # Sync commands with Discord
         guild = discord.Object(id=GUILD) if GUILD != 0 else None
         await bot.tree.sync(guild=guild)
         print(f"Slash commands synced {'to guild' if guild else 'globally'}")
-        
-        # Add persistent views
+
         bot.add_view(PersistentView())
-        
-        # Add views for ticket system persistence by registering their custom IDs
+
         bot.add_view(TicketView(None))  
         bot.add_view(ConfirmCloseView(None))
         print("Persistent views added")
@@ -927,22 +928,19 @@ async def on_ready():
 async def on_member_join(member):
     """Send a welcome message when a new member joins the server"""
     try:
-        # Get the showcase channel
         showcase_channel = bot.get_channel(1326998748718698563)
         if not showcase_channel:
             print("Showcase channel not found")
             return
-            
-        # Send simple welcome message
+
         welcome_text = f"👋 {member.mention} Welcome to LuvoWeb! Check out our website development & discord bot service showcases in this channel. For orders, visit the tickets channel."
-        
-        # Send and schedule deletion
+
         sent_message = await showcase_channel.send(welcome_text)
-        await asyncio.sleep(120)  # Wait 3 minutes
+        await asyncio.sleep(60)
         try:
             await sent_message.delete()
         except discord.NotFound:
-            pass  # Message might have been deleted already
+            pass
     except Exception as e:
         print(f"Error in welcome message: {e}")
 
@@ -967,13 +965,12 @@ async def evaluate_message_content(message_content):
     
     response = await get_ai_response(prompt)
     
-    if "DELETE" in response:
+    if "DELETE" in response.upper():
         return "DELETE"
-    elif "REDIRECT" in response:
+    elif "REDIRECT" in response.upper():
         return "REDIRECT"
     else:
         return "GOOD"
-
 
 ALLOWED_AD_USER_ID = 1330302391257661502
 ad_cooldown = {}

@@ -792,8 +792,8 @@ async def tos_command(ctx):
         await asyncio.sleep(0.5) 
 
 async def get_ai_response(prompt, max_attempts=3):
-    model = "deepseek-r1"
-    providers = ["LambdaChat", "DeepInfraChat", "PollinationsAI", "Glider", "TypeGPT"]
+    model = "o3-mini"
+    providers = ["PollinationsAI"]
     api_url = "https://chat-api-rp7a.onrender.com/v1/chat/completions"
     
     # Format message history (simplified for a single prompt)

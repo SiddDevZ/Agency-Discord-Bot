@@ -43,13 +43,11 @@ if not ICON_URL:
 
 CSS = os.getenv("CSS", "body{font-family:Arial,sans-serif;margin:0;padding:20px;background:#f5f5f5}.messages{display:flex;flex-direction:column;gap:10px}.message{display:flex;flex-direction:column;padding:10px;border-radius:5px;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.1)}.message img{width:30px;height:30px;border-radius:50%;margin-right:10px}.author{font-weight:bold;margin-right:10px}.timestamp{color:#666;font-size:0.8em}.content{margin-top:5px}")
 
-# Setup intents
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Enable member join/leave events
+intents.members = True
 bot = commands.Bot(command_prefix=commands.when_mentioned_or("-"), intents=intents)
 
-# Error handling
 @bot.event
 async def on_app_command_error(interaction, error):
     if isinstance(error, app_commands.CommandOnCooldown):
@@ -61,7 +59,6 @@ async def on_app_command_error(interaction, error):
     else:
         raise error
 
-# Ticket system modal classes
 class Support(discord.ui.Modal, title="Support Ticket"):
     details = discord.ui.TextInput(
         label="Support Details",
@@ -286,32 +283,25 @@ class ConfirmCloseView(discord.ui.View):
                 await interaction.followup.send("Error: Could not find the channel", ephemeral=True)
                 return
                 
-            # Process ticket transcript if logging is enabled
             log_channel = bot.get_channel(LOG_CHANNEL)
             if log_channel:
                 messages = []
                 async for message in channel.history(limit=500, oldest_first=True):
                     messages.append(message)
 
-                # Create a text preview for direct viewing in Discord
                 text_preview = f"# Transcript for {channel.name}\n"
                 text_preview += f"Closed by: {interaction.user.name} ({interaction.user.id}) at <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n\n"
                 
-                # Get ticket creator from the channel name
                 ticket_creator_name = channel.name.split('〢')[-1] if '〢' in channel.name else "Unknown"
                 text_preview += f"Ticket created by: {ticket_creator_name}\n"
                 text_preview += f"Total messages: {len(messages)}\n\n"
                 
-                # Create a summary of the transcript
                 text_preview += "## Message Summary\n"
                 
-                # Add up to 15 messages to the preview (prioritize first and latest messages)
                 message_limit = min(15, len(messages))
                 if len(messages) <= message_limit:
-                    # If we have fewer messages than the limit, include all of them
                     preview_messages = messages
                 else:
-                    # Otherwise, take first 5 and last 10 messages
                     preview_messages = messages[:5] + messages[-10:]
                     text_preview += f"*Showing {message_limit} out of {len(messages)} messages*\n\n"
                 
@@ -319,10 +309,8 @@ class ConfirmCloseView(discord.ui.View):
                     timestamp = f"<t:{int(msg.created_at.timestamp())}:t>"
                     text_preview += f"**{msg.author.name}** ({timestamp}): {msg.content[:100]}{'...' if len(msg.content) > 100 else ''}\n"
                 
-                # Generate a more detailed HTML transcript
                 transcript = ""
                 
-                # Improved CSS for better styling
                 enhanced_css = """
                 body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; color: #333; }
                 .ticket-info { background: #4A76A8; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
@@ -342,7 +330,6 @@ class ConfirmCloseView(discord.ui.View):
                 .system-message { background: #f0f7ff; border-left: 4px solid #4A76A8; padding: 10px; margin: 5px 0; }
                 """
                 
-                # HTML header with metadata
                 transcript += f"""<!DOCTYPE html>
                 <html>
                 <head>
@@ -363,14 +350,12 @@ class ConfirmCloseView(discord.ui.View):
                     <div class="messages">
                 """
                 
-                # Add each message to the transcript
                 for message in messages:
                     author_name = message.author.name
                     author_avatar = message.author.avatar.url if message.author.avatar else message.author.default_avatar.url
                     message_content = message.content.replace('<', '&lt;').replace('>', '&gt;')
                     timestamp = message.created_at.strftime('%Y-%m-%d %H:%M:%S')
                     
-                    # Handle embeds
                     embeds_html = ""
                     if message.embeds:
                         for embed in message.embeds:
@@ -381,7 +366,6 @@ class ConfirmCloseView(discord.ui.View):
                                 embeds_html += f'{embed.description}<br>'
                             embeds_html += '</div>'
                     
-                    # Handle attachments
                     attachments_html = ""
                     if message.attachments:
                         attachments_html = '<div class="message-attachments">'
@@ -389,7 +373,6 @@ class ConfirmCloseView(discord.ui.View):
                             attachments_html += f'<a href="{attachment.url}" target="_blank">{attachment.filename}</a> '
                         attachments_html += '</div>'
                     
-                    # Add the message to the transcript
                     transcript += f"""
                     <div class="message">
                         <div class="message-avatar">
@@ -407,10 +390,8 @@ class ConfirmCloseView(discord.ui.View):
                     </div>
                     """
                 
-                # Close the HTML
                 transcript += "</div></body></html>"
 
-                # Send text preview
                 preview_embed = discord.Embed(
                     title=f"📝 Ticket Transcript Preview - {channel.name}",
                     description=text_preview[:4000] if len(text_preview) > 4000 else text_preview,
@@ -420,7 +401,6 @@ class ConfirmCloseView(discord.ui.View):
                 preview_embed.set_footer(text="Full HTML transcript attached below")
                 await log_channel.send(embed=preview_embed)
                 
-                # Send the full HTML transcript
                 with io.StringIO(transcript) as transcript_file:
                     await log_channel.send(
                         file=discord.File(transcript_file, filename=f"transcript-{channel.name}-{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}.html")
@@ -434,10 +414,8 @@ class ConfirmCloseView(discord.ui.View):
             )
             await channel.send(embed=closing_embed)
             
-            # Wait a short time for users to see the message
             await asyncio.sleep(3)
             
-            # Delete the channel
             await channel.delete()
             
         except Exception as e:
@@ -470,7 +448,6 @@ class PersistentView(discord.ui.View):
             discord.ui.Button(
                 label="Terms of Service",
                 url="https://discord.com/channels/1326998747841822740/1326998748315914250",
-                # emoji="📕"
             )
         )
 
@@ -491,7 +468,6 @@ class PersistentView(discord.ui.View):
             )
             return
             
-        # Allow admins to bypass the ticket limit check
         if interaction.user.guild_permissions.administrator:
             await interaction.response.send_modal(MyModal())
             return
@@ -513,7 +489,6 @@ class PersistentView(discord.ui.View):
     @discord.ui.button(
         label="Support",
         style=discord.ButtonStyle.gray,
-        # emoji="<:user:1351969175001759755>",
         custom_id="persistent_view:support"
     )
     async def support(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -527,12 +502,10 @@ class PersistentView(discord.ui.View):
             )
             return
             
-        # Allow admins to bypass the ticket limit check
         if interaction.user.guild_permissions.administrator:
             await interaction.response.send_modal(Support())
             return
             
-        # Count user's existing tickets
         user_tickets = [
             channel for channel in ticket_category.channels 
             if channel.name.endswith(f"{interaction.user.name.lower()}")
@@ -572,11 +545,9 @@ async def setup(ctx):
 
 @bot.command(name="embed")
 async def about_command(ctx):
-    # First embed with just the image
     embed1 = discord.Embed(color=discord.Color.from_rgb(48, 44, 52))
     embed1.set_image(url="https://i.imgur.com/h7zJWq5.png")
     
-    # Second embed with all the text content
     embed2 = discord.Embed(
         title="Welcome to LuvoWeb Freelance!",
         color=discord.Color.from_rgb(48, 44, 52),
@@ -588,7 +559,6 @@ async def about_command(ctx):
         )
     )
     
-    # Add fields from the third embed
     embed2.add_field(
         name="💎 **__LuvoWeb QuickLinks__**",
         value="> [Website](https://luvoweb.com)\n> [disboard.org](https://disboard.org/server/1326998747841822740)",
@@ -603,7 +573,6 @@ async def about_command(ctx):
     embed2.set_thumbnail(url=ICON_URL)
     embed2.set_footer(text="LuvoWeb • The Future of Freelance", icon_url=ICON_URL)
     
-    # Create simplified view with only the essential buttons
     view = discord.ui.View()
     view.add_item(discord.ui.Button(
         label="Order Now", 
@@ -619,13 +588,11 @@ async def about_command(ctx):
         url="https://luvoweb.com"
     ))
 
-    # Send both embeds
     await ctx.send(embeds=[embed1, embed2], view=view)
 
 
 @bot.command(name="rules")
 async def rules_command(ctx):
-    # First embed with just the image
     rules_intro = discord.Embed(
         title="LuvoWeb Community Guidelines",
         description="Please follow these rules to maintain a professional environment for our web development community.",
@@ -633,7 +600,6 @@ async def rules_command(ctx):
     )
     rules_intro.set_image(url="https://i.imgur.com/ltnEOM1.png")
     
-    # Rules embed list - tailored for web development agency
     rule_embeds = [
         discord.Embed(
             title="<:dot:996804674252439733> RULE 1 - Do Not Spam",
@@ -700,18 +666,15 @@ async def rules_command(ctx):
     for embed in rule_embeds:
         embed.set_footer(text="LuvoWeb • The Future of Freelance", icon_url=ICON_URL)
     
-    # Send the intro embed first
     await ctx.send(embed=rules_intro)
     
-    # Then send each rule embed
     for embed in rule_embeds:
         await ctx.send(embed=embed)
-        await asyncio.sleep(0.5)  # Brief delay between messages to prevent rate limiting
+        await asyncio.sleep(0.5)
 
 
 @bot.command(name="terms")
 async def tos_command(ctx):
-    # First embed with just the image
     tos_intro = discord.Embed(
         title="LuvoWeb Terms of Service",
         description="Please review our Terms of Service carefully before engaging our services.",
@@ -796,10 +759,8 @@ async def get_ai_response(prompt, max_attempts=3):
     providers = ["PollinationsAI"]
     api_url = "https://chat-api-rp7a.onrender.com/v1/chat/completions"
     
-    # Format message history (simplified for a single prompt)
     messages = [{"role": "user", "content": prompt}]
     
-    # Function to query a single provider
     def query_provider(provider):
         for attempt in range(max_attempts):
             try:
@@ -821,7 +782,6 @@ async def get_ai_response(prompt, max_attempts=3):
                 if response.status_code == 200:
                     data = response.json()
                     content = data["choices"][0]["message"]["content"]
-                    # Remove content between <think> and </think> tags
                     content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
                     return content, provider
                 
@@ -845,7 +805,6 @@ async def get_ai_response(prompt, max_attempts=3):
                 break
     
     if result:
-        # print(f"Response received from {successful_provider}")
         return result
     else:
         return "Sorry, I couldn't get a response from any AI provider at the moment."
@@ -893,7 +852,6 @@ async def quote(interaction: discord.Interaction):
 async def version(interaction: discord.Interaction):
     embed = discord.Embed(
         title="About LuvoBot",
-        # description="`Version Beta`: Released in <t:1686772380:d>",
         color=discord.Color.green()
     )
     embed.add_field(name="Language", value="```Python 3.11```", inline=True)
@@ -926,7 +884,6 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
-    """Send a welcome message when a new member joins the server"""
     try:
         showcase_channel = bot.get_channel(1326998748718698563)
         if not showcase_channel:
@@ -946,12 +903,6 @@ async def on_member_join(member):
 
 
 async def evaluate_message_content(message_content):
-    """
-    Send message to AI to evaluate if it violates community guidelines
-    
-    Returns:
-        str: "DELETE", "REDIRECT", or "GOOD" based on AI evaluation
-    """
     prompt = (
         "As the owner of a web development agency Discord server, your focus is on fostering natural "
         "discussions, collaboration, and knowledge sharing about web development. Promotions, advertisements, "
@@ -976,10 +927,6 @@ ALLOWED_AD_USER_ID = 1330302391257661502
 ad_cooldown = {}
 
 async def check_ad_permission(user_id, message_content, channel):
-    """
-    Checks if a user is allowed to post an ad and manages the cooldown.
-    Returns True if the ad is allowed, False if not.
-    """
     if user_id != ALLOWED_AD_USER_ID:
         return False
         
@@ -1030,7 +977,6 @@ async def on_message(message):
             ad_allowed = await check_ad_permission(message.author.id, message.content, message.channel)
             
             if ad_allowed:
-                # Let the ad stay
                 return
                 
             try:
@@ -1072,7 +1018,6 @@ async def on_message(message):
             except Exception as e:
                 print(f"Failed to send deletion notification: {str(e)}")
             
-            # Delete the message
             await message.delete()
             
             muted_role = discord.utils.get(message.guild.roles, name="Muted")
